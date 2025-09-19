@@ -1,49 +1,16 @@
-name: Deploy to EC2
+name: Test Slack Notification
 
 on:
   push:
     branches:
-      - cicd
+      - cicd  # You can use any branch you push to for testing
 
 jobs:
-  deploy1:
+  slack-test:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-
-  deploy2:
-    runs-on: ubuntu-latest
-    needs: deploy1
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-
-      - name: run a linux command
-        run: cat index.html
-
-  deploy3:
-    runs-on: ubuntu-latest
-    needs: deploy2
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-
-      - name: run a linux command
-        run: ls -la
-
-  deploy4:
-    runs-on: ubuntu-latest
-    needs: deploy3
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-
-      - name: run a linux command
-        run: cat index.html
-
       - name: Notify Slack
         uses: rtCamp/action-slack-notify@v2
         env:
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
-          MESSAGE: "deploy job finished successfully!"
+          MESSAGE: "✅ Test message from GitHub Actions worked!"
