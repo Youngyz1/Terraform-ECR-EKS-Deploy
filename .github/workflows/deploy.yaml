@@ -5,40 +5,45 @@ on:
     branches:
       - cicd
 
-jobs: 
-  Deploy1:
+jobs:
+  deploy1:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v3
 
-  Deploy2:
-      runs-on: ubuntu-latest
-      needs: Deploy1
-      steps:
-       - name: Checkout
-         uses: actions/checkout@v3
+  deploy2:
+    runs-on: ubuntu-latest
+    needs: deploy1
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
 
-       - name: run a linux command
-         run: cat index.html
+      - name: run a linux command
+        run: cat index.html
 
-  Deploy3:
-      runs-on: ubuntu-latest
-      needs: Deploy2
-      steps:
-       - name: checkout
-         uses: actions/checkout@v3
+  deploy3:
+    runs-on: ubuntu-latest
+    needs: deploy2
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
 
-       - name: run a linux command
-         run: ls -la
+      - name: run a linux command
+        run: ls -la
 
-  Deploy4:
-      runs-on: ubuntu-latest
-      needs: Deploy3
-      steps:
-       - name: checkout
-         uses: actions/checkout@v3
+  deploy4:
+    runs-on: ubuntu-latest
+    needs: deploy3
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
 
-       - name: run a linux command
-         run: cat index.html
-      
+      - name: run a linux command
+        run: cat index.html
+
+      - name: Notify Slack
+        uses: rtCamp/action-slack-notify@v2
+        with:
+          webhook_url: ${{ secrets.SLACK_WEBHOOK_URL }}
+          message: "deployment job finished successfully!"
