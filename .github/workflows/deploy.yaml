@@ -3,7 +3,7 @@ name: Test Slack Notification
 on:
   push:
     branches:
-      - cicd  # You can use any branch you push to for testing
+      - cicd
 
 jobs:
   slack-test:
