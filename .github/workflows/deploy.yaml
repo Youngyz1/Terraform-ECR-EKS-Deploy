@@ -45,5 +45,5 @@ jobs:
       - name: Notify Slack
         uses: rtCamp/action-slack-notify@v2
         env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
           MESSAGE: "deploy job finished successfully!"
