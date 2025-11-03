@@ -1,0 +1,76 @@
+name: Terraform CI/CD + Docker ECR Deploy
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  terraform:
+    name: Build Docker Image, Push to ECR, and Apply Terraform
+    runs-on: ubuntu-latest
+
+    env:
+      TF_WORKING_DIR: "."  # change if your Terraform files are in a subfolder
+      AWS_REGION: us-east-1
+      ECR_REPOSITORY: uchenewwebsit-repo
+      AWS_ACCOUNT_ID: 958421185668
+
+    steps:
+      # 1️⃣ Checkout repository
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 2️⃣ Configure AWS credentials
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      # 3️⃣ Log in to Amazon ECR
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      # 4️⃣ Build and push Docker image to ECR
+      - name: Build and Push Docker image
+        id: build-image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        run: |
+          IMAGE_TAG=${{ github.sha }}
+          echo "Building image..."
+          docker build -t $ECR_REGISTRY/${{ env.ECR_REPOSITORY }}:$IMAGE_TAG .
+          echo "Pushing image..."
+          docker push $ECR_REGISTRY/${{ env.ECR_REPOSITORY }}:$IMAGE_TAG
+          echo "IMAGE_URI=$ECR_REGISTRY/${{ env.ECR_REPOSITORY }}:$IMAGE_TAG" >> $GITHUB_ENV
+
+      # 5️⃣ Set up Terraform
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.13.4
+
+      # 6️⃣ Terraform Init
+      - name: Terraform Init
+        run: terraform -chdir=${{ env.TF_WORKING_DIR }} init
+
+      # 7️⃣ Terraform Format Check
+      - name: Terraform Format
+        run: terraform -chdir=${{ env.TF_WORKING_DIR }} fmt -check
+
+      # 8️⃣ Terraform Validate
+      - name: Terraform Validate
+        run: terraform -chdir=${{ env.TF_WORKING_DIR }} validate
+
+      # 9️⃣ Terraform Plan
+      - name: Terraform Plan
+        id: plan
+        run: terraform -chdir=${{ env.TF_WORKING_DIR }} plan -var="image_uri=${{ env.IMAGE_URI }}" -out=tfplan
+
+      # 🔟 Terraform Apply (only on main branch)
+      - name: Terraform Apply
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        run: terraform -chdir=${{ env.TF_WORKING_DIR }} apply -auto-approve tfplan
