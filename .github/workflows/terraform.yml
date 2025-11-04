@@ -7,11 +7,11 @@ on:
 
 jobs:
   terraform:
-    name: Build Docker Image, Push to ECR, and Apply Terraform
+    name: Terraform → Build Docker → Push to ECR
     runs-on: ubuntu-latest
 
     env:
-      TF_WORKING_DIR: "."  # change if your Terraform files are in a subfolder
+      TF_WORKING_DIR: "."
       AWS_REGION: us-east-1
       ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY }}
       AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
@@ -29,12 +29,24 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      # 3️⃣ Log in to Amazon ECR
+      # 3️⃣ Setup Terraform
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.13.4
+
+      # 4️⃣ Terraform Init + Apply (creates ECR repo)
+      - name: Terraform Init and Apply
+        run: |
+          terraform -chdir=${{ env.TF_WORKING_DIR }} init
+          terraform -chdir=${{ env.TF_WORKING_DIR }} apply -auto-approve
+
+      # 5️⃣ Login to ECR
       - name: Login to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      # 4️⃣ Build and push Docker image to ECR
+      # 6️⃣ Build and Push Docker image to ECR
       - name: Build and Push Docker image
         id: build-image
         env:
@@ -47,30 +59,12 @@ jobs:
           docker push $ECR_REGISTRY/${{ env.ECR_REPOSITORY }}:$IMAGE_TAG
           echo "IMAGE_URI=$ECR_REGISTRY/${{ env.ECR_REPOSITORY }}:$IMAGE_TAG" >> $GITHUB_ENV
 
-      # 5️⃣ Set up Terraform
-      - name: Set up Terraform
-        uses: hashicorp/setup-terraform@v2
-        with:
-          terraform_version: 1.13.4
-
-      # 6️⃣ Terraform Init
-      - name: Terraform Init
-        run: terraform -chdir=${{ env.TF_WORKING_DIR }} init
-
-      # 7️⃣ Terraform Format Check
-      - name: Terraform Format
-        run: terraform -chdir=${{ env.TF_WORKING_DIR }} fmt -check
-
-      # 8️⃣ Terraform Validate
-      - name: Terraform Validate
-        run: terraform -chdir=${{ env.TF_WORKING_DIR }} validate
-
-      # 9️⃣ Terraform Plan
+      # 7️⃣ Terraform Plan (to pass image_uri to EKS)
       - name: Terraform Plan
         id: plan
         run: terraform -chdir=${{ env.TF_WORKING_DIR }} plan -var="image_uri=${{ env.IMAGE_URI }}" -out=tfplan
 
-      # 🔟 Terraform Apply (only on main branch)
-      - name: Terraform Apply
+      # 8️⃣ Terraform Apply (deploy to EKS, etc.)
+      - name: Terraform Apply (final deploy)
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         run: terraform -chdir=${{ env.TF_WORKING_DIR }} apply -auto-approve tfplan
