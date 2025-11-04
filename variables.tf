@@ -16,8 +16,7 @@ variable "vpc_cidr" {
   default     = "10.0.0.0/16"
 }
 
-variable "ecr_repository_name" {
-  description = "Name of the ECR repository for the Docker image"
+variable "image_uri" {
+  description = "Full URI of the Docker image in ECR"
   type        = string
-  default     = "uchenewwebsit-repo"
 }
