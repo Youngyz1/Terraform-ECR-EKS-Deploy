@@ -13,8 +13,8 @@ jobs:
     env:
       TF_WORKING_DIR: "."  # change if your Terraform files are in a subfolder
       AWS_REGION: us-east-1
-      ECR_REPOSITORY: uchenewwebsit-repo
-      AWS_ACCOUNT_ID: 958421185668
+      ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY }}
+      AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
 
     steps:
       # 1️⃣ Checkout repository
