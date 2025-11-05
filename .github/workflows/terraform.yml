@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
 
     outputs:
-      IMAGE_URI: ${{ steps.build.outputs.image_uri }}
+      IMAGE_URI: ${{ steps.build.outputs.IMAGE_URI }}
 
     env:
       AWS_REGION: us-east-1
@@ -40,7 +40,7 @@ jobs:
           echo "Building Docker image $IMAGE_URI..."
           docker build -t $IMAGE_URI .
           docker push $IMAGE_URI
-          echo "image_uri=$IMAGE_URI" >> $GITHUB_OUTPUT
+          echo "IMAGE_URI=$IMAGE_URI" >> $GITHUB_OUTPUT
 
   terraform-deploy:
     name: Terraform Apply (Update EKS Deployment)
@@ -71,10 +71,14 @@ jobs:
         run: terraform -chdir=${{ env.TF_WORKING_DIR }} init
 
       - name: Debug Image URI
-        run: echo "IMAGE_URI=${{ needs.build-and-push.outputs.IMAGE_URI }}"
+        run: |
+          echo "IMAGE_URI from build-and-push job:"
+          echo "${{ needs.build-and-push.outputs.IMAGE_URI }}"
 
       - name: Terraform Plan
-        run: terraform -chdir=${{ env.TF_WORKING_DIR }} plan -var="image_uri=${{ needs.build-and-push.outputs.IMAGE_URI }}" -out=tfplan
+        run: terraform -chdir=${{ env.TF_WORKING_DIR }} plan \
+          -var="image_uri=${{ needs.build-and-push.outputs.IMAGE_URI }}" \
+          -out=tfplan
 
       - name: Terraform Apply
         run: terraform -chdir=${{ env.TF_WORKING_DIR }} apply -auto-approve tfplan
