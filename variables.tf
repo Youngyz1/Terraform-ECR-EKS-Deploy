@@ -16,7 +16,25 @@ variable "vpc_cidr" {
   default     = "10.0.0.0/16"
 }
 
+variable "cluster_name" {
+  description = "EKS cluster name"
+  type        = string
+  default     = "main_eks"
+}
+
+variable "docker_context" {
+  description = "Path to the Dockerfile directory"
+  type        = string
+  default     = "./app"
+}
+
+variable "docker_tag" {
+  description = "Docker image tag"
+  type        = string
+  default     = "latest"
+}
+
 variable "image_uri" {
-  description = "Full URI of the Docker image in ECR"
+  description = "Docker image to deploy"
   type        = string
 }
