@@ -1,12 +1,4 @@
 terraform {
-  backend "s3" {
-    bucket         = "youngyz-terraform-state"
-    key            = "vpc/terraform.tfstate"
-    region         = "us-east-1"
-    dynamodb_table = "terraform-locks"
-    encrypt        = true
-  }
-
   required_providers {
     aws = {
       source  = "hashicorp/aws"
@@ -21,18 +13,22 @@ terraform {
       version = "2.32.0"
     }
   }
-}
 
-#########################################
-# PROVIDERS
-#########################################
+  backend "s3" {
+    bucket         = "youngyz-terraform-state"
+    key            = "full-stack/terraform.tfstate"
+    region         = "us-east-1"
+    dynamodb_table = "terraform-locks"
+    encrypt        = true
+  }
+}
 
 provider "aws" {
   region = var.region
 }
 
 provider "docker" {
-  host = "unix:///var/run/docker.sock"
+  host = "unix:///var/run/docker.sock" # For GitHub Actions ubuntu-latest
 }
 
 provider "kubernetes" {

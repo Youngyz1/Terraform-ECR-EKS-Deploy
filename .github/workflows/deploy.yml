@@ -4,71 +4,58 @@ on:
   push:
     branches: [ main ]
 
-env:
-  AWS_REGION: us-east-1
-
 jobs:
   build-and-push:
-    name: Build & Push Docker image to ECR
+    name: Build Docker & Push to ECR
     runs-on: ubuntu-latest
-
     outputs:
       image_uri: ${{ steps.export.outputs.image_uri }}
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
+          aws-region: us-east-1
 
       - name: Login to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Build and Push Docker image
+      - name: Build & Push Docker image
         id: build
         run: |
           IMAGE_TAG=${GITHUB_SHA}
-          ECR_REGISTRY=${{ steps.login-ecr.outputs.registry }}
-          IMAGE_URI=$ECR_REGISTRY/${{ secrets.ECR_REPOSITORY }}:$IMAGE_TAG
-
-          echo "🚀 Building Docker image: $IMAGE_URI"
-          docker build -t $IMAGE_URI .
+          IMAGE_URI=${{ steps.login-ecr.outputs.registry }}/uchenewwebsit-repo:$IMAGE_TAG
+          docker build -t $IMAGE_URI ./app
           docker push $IMAGE_URI
-
           echo "IMAGE_URI=$IMAGE_URI" >> $GITHUB_ENV
+          echo "image_uri=$IMAGE_URI" >> $GITHUB_OUTPUT
 
-      - name: Export IMAGE_URI to outputs
+      - name: Export IMAGE_URI
         id: export
-        run: |
-          echo "image_uri=${IMAGE_URI}" >> $GITHUB_OUTPUT
-          echo "✅ Exported IMAGE_URI=${IMAGE_URI}"
+        run: echo "✅ IMAGE_URI exported: $IMAGE_URI"
 
   terraform-deploy:
     name: Terraform Apply → Deploy to EKS
     runs-on: ubuntu-latest
     needs: build-and-push
-
     env:
       TF_WORKING_DIR: "."
-      AWS_REGION: us-east-1
       IMAGE_URI: ${{ needs.build-and-push.outputs.image_uri }}
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
+          aws-region: us-east-1
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v2
@@ -78,11 +65,7 @@ jobs:
       - name: Terraform Init
         run: terraform -chdir=${{ env.TF_WORKING_DIR }} init
 
-      - name: Terraform Plan
+      - name: Terraform Plan & Apply
         run: |
-          terraform -chdir=${{ env.TF_WORKING_DIR }} plan \
-            -var="image_uri=${{ env.IMAGE_URI }}" \
-            -out=tfplan
-
-      - name: Terraform Apply
-        run: terraform -chdir=${{ env.TF_WORKING_DIR }} apply -auto-approve tfplan
+          terraform -chdir=${{ env.TF_WORKING_DIR }} plan -var="image_uri=${{ env.IMAGE_URI }}" -out=tfplan
+          terraform -chdir=${{ env.TF_WORKING_DIR }} apply -auto-approve tfplan
