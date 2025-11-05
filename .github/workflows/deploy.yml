@@ -34,10 +34,11 @@ jobs:
         run: |
           IMAGE_TAG=${GITHUB_SHA}
           IMAGE_URI=${{ steps.login-ecr.outputs.registry }}/uchenewwebsit-repo:$IMAGE_TAG
-          echo "🚀 Building Docker image: $IMAGE_URI"
-          docker build -t $IMAGE_URI ./app
+          docker build -t $IMAGE_URI .
           docker push $IMAGE_URI
           echo "IMAGE_URI=$IMAGE_URI" >> $GITHUB_ENV
+          echo "image_uri=$IMAGE_URI" >> $GITHUB_OUTPUT
+
 
       - name: Export IMAGE_URI
         id: export
