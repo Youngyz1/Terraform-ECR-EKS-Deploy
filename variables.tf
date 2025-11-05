@@ -25,7 +25,7 @@ variable "cluster_name" {
 variable "docker_context" {
   description = "Path to the Dockerfile directory"
   type        = string
-  default     = "./app"
+  default     = "."
 }
 
 variable "docker_tag" {
