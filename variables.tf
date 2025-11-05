@@ -33,8 +33,7 @@ variable "docker_tag" {
   type        = string
   default     = "latest"
 }
-
 variable "image_uri" {
-  description = "Docker image to deploy"
+  description = "Docker image URI"
   type        = string
 }
