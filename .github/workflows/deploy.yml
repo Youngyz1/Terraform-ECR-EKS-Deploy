@@ -1,4 +1,4 @@
-name: CI/CD - Docker ECR → EKS
+name: CI/CD - Terraform ECR → EKS
 
 on:
   push:
@@ -9,22 +9,16 @@ env:
 
 jobs:
   build-and-push:
-    name: Build Docker → Push to ECR
+    name: Build & Push Docker image to ECR
     runs-on: ubuntu-latest
 
     outputs:
-      IMAGE_URI: ${{ steps.set-output.outputs.IMAGE_URI }}
-
-    env:
-      ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY }}
-      AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
+      image_uri: ${{ steps.export.outputs.image_uri }}
 
     steps:
-      # 1️⃣ Checkout repository
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 2️⃣ Configure AWS credentials
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -32,50 +26,43 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      # 3️⃣ Login to Amazon ECR
       - name: Login to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      # 4️⃣ Build & Push Docker image
-      - name: Build & Push Docker image
+      - name: Build and Push Docker image
         id: build
         run: |
           IMAGE_TAG=${GITHUB_SHA}
           ECR_REGISTRY=${{ steps.login-ecr.outputs.registry }}
-          IMAGE_URI=$ECR_REGISTRY/${{ env.ECR_REPOSITORY }}:$IMAGE_TAG
+          IMAGE_URI=$ECR_REGISTRY/${{ secrets.ECR_REPOSITORY }}:$IMAGE_TAG
 
           echo "🚀 Building Docker image: $IMAGE_URI"
           docker build -t $IMAGE_URI .
           docker push $IMAGE_URI
 
-          # Save IMAGE_URI to a file for the next step
-          echo "$IMAGE_URI" > image_uri.txt
+          echo "IMAGE_URI=$IMAGE_URI" >> $GITHUB_ENV
 
-      # 5️⃣ Export IMAGE_URI to job outputs properly
-      - name: Set IMAGE_URI output
-        id: set-output
+      - name: Export IMAGE_URI to outputs
+        id: export
         run: |
-          IMAGE_URI=$(cat image_uri.txt)
-          echo "IMAGE_URI=$IMAGE_URI" >> $GITHUB_OUTPUT
-          echo "✅ IMAGE_URI exported: $IMAGE_URI"
+          echo "image_uri=${IMAGE_URI}" >> $GITHUB_OUTPUT
+          echo "✅ Exported IMAGE_URI=${IMAGE_URI}"
 
   terraform-deploy:
     name: Terraform Apply → Deploy to EKS
     runs-on: ubuntu-latest
     needs: build-and-push
-    environment: production
 
     env:
       TF_WORKING_DIR: "."
       AWS_REGION: us-east-1
+      IMAGE_URI: ${{ needs.build-and-push.outputs.image_uri }}
 
     steps:
-      # 1️⃣ Checkout repository
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 2️⃣ Configure AWS credentials
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -83,31 +70,19 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      # 3️⃣ Setup Terraform
-      - name: Set up Terraform
+      - name: Setup Terraform
         uses: hashicorp/setup-terraform@v2
         with:
           terraform_version: 1.13.4
 
-      # 4️⃣ Terraform Init
       - name: Terraform Init
         run: terraform -chdir=${{ env.TF_WORKING_DIR }} init
 
-      # 5️⃣ Validate IMAGE_URI
-      - name: Validate Image URI
-        run: |
-          echo "🔍 IMAGE_URI=${{ needs.build-and-push.outputs.IMAGE_URI }}"
-          if [ -z "${{ needs.build-and-push.outputs.IMAGE_URI }}" ]; then
-            echo "❌ ERROR: IMAGE_URI is empty. Exiting."
-            exit 1
-          fi
-
-      # 6️⃣ Terraform Plan
       - name: Terraform Plan
-        run: terraform -chdir=${{ env.TF_WORKING_DIR }} plan \
-          -var="image_uri=${{ needs.build-and-push.outputs.IMAGE_URI }}" \
-          -out=tfplan
+        run: |
+          terraform -chdir=${{ env.TF_WORKING_DIR }} plan \
+            -var="image_uri=${{ env.IMAGE_URI }}" \
+            -out=tfplan
 
-      # 7️⃣ Terraform Apply
       - name: Terraform Apply
         run: terraform -chdir=${{ env.TF_WORKING_DIR }} apply -auto-approve tfplan

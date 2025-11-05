@@ -18,7 +18,7 @@ terraform {
     }
     kubernetes = {
       source  = "hashicorp/kubernetes"
-      version = "2.32.0" # Optional, but good to specify
+      version = "2.32.0"
     }
   }
 }
@@ -27,20 +27,16 @@ terraform {
 # PROVIDERS
 #########################################
 
-# AWS Provider
 provider "aws" {
   region = var.region
 }
 
-# Docker Provider (for building & pushing images)
 provider "docker" {
-  host = "npipe:////./pipe/docker_engine"
+  host = "unix:///var/run/docker.sock"
 }
 
-# Kubernetes Provider (for deploying manifests to EKS)
 provider "kubernetes" {
   host                   = aws_eks_cluster.main_eks.endpoint
   cluster_ca_certificate = base64decode(aws_eks_cluster.main_eks.certificate_authority[0].data)
   token                  = data.aws_eks_cluster_auth.main_eks.token
 }
-
