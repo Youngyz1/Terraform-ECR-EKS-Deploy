@@ -1,0 +1,36 @@
+name: Terraform Destroy
+
+on:
+  workflow_dispatch:  # ✅ Manual trigger from GitHub Actions UI
+
+jobs:
+  destroy:
+    name: Destroy Terraform Infrastructure
+    runs-on: ubuntu-latest
+
+    env:
+      TF_WORKING_DIR: "."  # Your Terraform root folder
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.13.4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      # ✅ Reconfigure Terraform to use the remote S3 backend
+      - name: Terraform Init (Remote Backend)
+        run: terraform -chdir=${{ env.TF_WORKING_DIR }} init -reconfigure
+
+      # ✅ Destroy resources tracked in remote S3 state
+      - name: Terraform Destroy
+        run: terraform -chdir=${{ env.TF_WORKING_DIR }} destroy -auto-approve
