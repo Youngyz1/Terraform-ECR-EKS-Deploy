@@ -33,4 +33,4 @@ jobs:
 
       # ✅ Destroy resources tracked in remote S3 state
       - name: Terraform Destroy
-        run: terraform -chdir=${{ env.TF_WORKING_DIR }} destroy -auto-approve -var="image_uri=latest"
+        run: terraform -chdir=${{ env.TF_WORKING_DIR }} destroy -auto-approve
