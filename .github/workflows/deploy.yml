@@ -25,6 +25,17 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
+      # 🧩 NEW STEP — ensure ECR repo exists
+      - name: Ensure ECR repository exists
+        run: |
+          REPO_NAME="uchenewwebsit-repo"
+          if ! aws ecr describe-repositories --repository-names $REPO_NAME >/dev/null 2>&1; then
+            echo "🔧 ECR repository not found. Creating $REPO_NAME..."
+            aws ecr create-repository --repository-name $REPO_NAME --region $AWS_REGION
+          else
+            echo "✅ ECR repository already exists."
+          fi
+
       - name: Login to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
@@ -34,11 +45,11 @@ jobs:
         run: |
           IMAGE_TAG=${GITHUB_SHA}
           IMAGE_URI=${{ steps.login-ecr.outputs.registry }}/uchenewwebsit-repo:$IMAGE_TAG
+          echo "🧱 Building Docker image: $IMAGE_URI"
           docker build -t $IMAGE_URI .
           docker push $IMAGE_URI
           echo "IMAGE_URI=$IMAGE_URI" >> $GITHUB_ENV
           echo "image_uri=$IMAGE_URI" >> $GITHUB_OUTPUT
-
 
       - name: Export IMAGE_URI
         id: export
