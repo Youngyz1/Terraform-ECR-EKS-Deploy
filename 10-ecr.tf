@@ -12,6 +12,7 @@ data "aws_ecr_repository" "existing" {
 resource "aws_ecr_repository" "service" {
   count                = length(data.aws_ecr_repository.existing) == 0 ? 1 : 0
   name                 = "uchenewwebsit-repo"
+  force_delete         = true
   image_tag_mutability = "MUTABLE"
 
   image_scanning_configuration {
