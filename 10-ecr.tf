@@ -1,33 +1,26 @@
-# Import existing ECR repository or create new one
-# The repository likely already exists from previous deploys
-# If you need to recreate it, manually delete it from AWS first
+# Create the ECR repository so Terraform manages it
+resource "aws_ecr_repository" "service" {
+  name                 = "uchenewwebsit-repo"
+  force_delete         = true
+  image_tag_mutability = "MUTABLE"
 
-# Commented out - repository already exists in AWS
-# Uncomment and run: terraform import aws_ecr_repository.service uchenewwebsit-repo
+  image_scanning_configuration {
+    scan_on_push = true
+  }
 
-# resource "aws_ecr_repository" "service" {
-#   name                 = "uchenewwebsit-repo"
-#   force_delete         = true
-#   image_tag_mutability = "MUTABLE"
-#
-#   image_scanning_configuration {
-#     scan_on_push = true
-#   }
-# }
-
-# Data source to reference the existing ECR repository
-data "aws_ecr_repository" "service" {
-  name = "uchenewwebsit-repo"
+  tags = {
+    Name = "uchenewwebsit-repo"
+  }
 }
 
 locals {
-  ecr_repo_url = data.aws_ecr_repository.service.repository_url
+  ecr_repo_url = aws_ecr_repository.service.repository_url
 }
 
 # Build and push the Docker image
 resource "null_resource" "docker_build_push" {
   depends_on = [
-    data.aws_ecr_repository.service
+    aws_ecr_repository.service
   ]
 
   triggers = {
