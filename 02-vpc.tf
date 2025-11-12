@@ -5,4 +5,8 @@ resource "aws_vpc" "main_vpc" {
   tags = {
     Name = var.main_vpc
   }
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }

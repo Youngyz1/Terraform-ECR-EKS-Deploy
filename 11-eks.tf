@@ -56,6 +56,18 @@ resource "aws_eks_cluster" "main_eks" {
     aws_iam_role_policy_attachment.eks_cluster_policy,
     aws_iam_role_policy_attachment.eks_service_policy
   ]
+
+  # Add generous timeouts for EKS lifecycle
+  # EKS cluster deletion is asynchronous and can take 10-15+ minutes
+  timeouts {
+    create = "30m"
+    delete = "30m"
+    update = "60m"
+  }
+
+    lifecycle {
+      prevent_destroy = true
+    }
 }
 
 ############################################
@@ -123,4 +135,11 @@ resource "aws_eks_node_group" "main_node_group" {
     aws_iam_role_policy_attachment.eks_cni_policy,
     aws_iam_role_policy_attachment.ec2_container_registry_readonly
   ]
+
+  # Add timeouts for node group lifecycle operations
+  timeouts {
+    create = "30m"
+    delete = "30m"
+    update = "30m"
+  }
 }
