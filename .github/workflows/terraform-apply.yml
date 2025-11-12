@@ -1,0 +1,82 @@
+name: Terraform Apply (Manual Trigger)
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+          - production
+          - staging
+
+jobs:
+  terraform:
+    name: Terraform Apply
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.6.0
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/github-actions-role
+          aws-region: us-east-1
+        env:
+          AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
+
+      - name: Terraform Init
+        run: terraform init
+        env:
+          AWS_REGION: us-east-1
+
+      - name: Terraform Format Check
+        run: terraform fmt -check -recursive
+        continue-on-error: true
+
+      - name: Terraform Plan
+        run: terraform plan -out=tfplan -input=false
+        env:
+          AWS_REGION: us-east-1
+
+      - name: Terraform Apply
+        run: terraform apply -input=false -auto-approve tfplan
+        env:
+          AWS_REGION: us-east-1
+
+      - name: Output Terraform Results
+        if: always()
+        run: |
+          echo "=== Terraform Outputs ==="
+          terraform output -json > outputs.json
+          cat outputs.json
+          echo ""
+          echo "Grafana: http://$(terraform output -raw grafana_load_balancer_address)"
+          echo "Argo CD: http://$(terraform output -raw argocd_server_address)"
+
+      - name: Upload Terraform Plan
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: terraform-plan
+          path: tfplan
+
+      - name: Notify Success
+        if: success()
+        run: echo "✅ Terraform apply completed successfully!"
+
+      - name: Notify Failure
+        if: failure()
+        run: echo "❌ Terraform apply failed! Check logs above."

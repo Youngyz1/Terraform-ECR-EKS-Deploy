@@ -1,0 +1,66 @@
+name: Terraform Plan (CI Check)
+
+on:
+  pull_request:
+    paths:
+      - '**.tf'
+      - 'terraform.tfvars'
+      - '.github/workflows/terraform-plan.yml'
+
+jobs:
+  terraform:
+    name: Terraform Plan
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.6.0
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/github-actions-role
+          aws-region: us-east-1
+
+      - name: Terraform Init
+        run: terraform init -backend=false
+        env:
+          AWS_REGION: us-east-1
+
+      - name: Terraform Format Check
+        run: terraform fmt -check -recursive
+        continue-on-error: true
+
+      - name: Terraform Validate
+        run: terraform validate
+        env:
+          AWS_REGION: us-east-1
+
+      - name: Terraform Plan
+        run: terraform plan -out=tfplan
+        continue-on-error: true
+        env:
+          AWS_REGION: us-east-1
+
+      - name: Comment PR with Plan
+        uses: actions/github-script@v6
+        if: github.event_name == 'pull_request'
+        with:
+          script: |
+            const fs = require('fs');
+            const plan = fs.readFileSync('tfplan', 'utf8');
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '```\n' + plan + '\n```'
+            });
