@@ -31,9 +31,9 @@ terraform {
   }
 }
 
-# ----------------------------------------
+# ----------------------------------------------------------
 # 🧩 AWS & Docker Providers
-# ----------------------------------------
+# ----------------------------------------------------------
 
 provider "aws" {
   region = var.region
@@ -43,50 +43,35 @@ provider "docker" {
   host = "unix:///var/run/docker.sock"
 }
 
-# ----------------------------------------
-# 🧩 EKS Data Sources (Cluster & Auth)
-# ----------------------------------------
-# These must be declared *after* the EKS cluster is created.
-# Do NOT use them directly in provider blocks at initialization time.
+# ----------------------------------------------------------
+# 🧩 EKS Cluster Data Sources
+# ----------------------------------------------------------
+
 data "aws_eks_cluster" "main" {
-  name = aws_eks_cluster.main_eks.name
+  name = try(aws_eks_cluster.main_eks.name, "placeholder")
 }
 
 data "aws_eks_cluster_auth" "main" {
-  name = aws_eks_cluster.main_eks.name
+  name = try(aws_eks_cluster.main_eks.name, "placeholder")
 }
-# ----------------------------------------
-# Configure Kubernetes & Helm providers to talk to the EKS cluster
-# DISABLED during cleanup - will re-enable after resources are destroyed
-# ----------------------------------------
-# provider "kubernetes" {
-#   host                   = aws_eks_cluster.main_eks.endpoint
-#   cluster_ca_certificate = base64decode(data.aws_eks_cluster.main.certificate_authority[0].data)
-#   token                  = data.aws_eks_cluster_auth.main.token
-#   alias                  = "eks"
-# }
-#
-# provider "helm" {
-#   kubernetes = {
-#     host                   = aws_eks_cluster.main_eks.endpoint
-#     cluster_ca_certificate = base64decode(data.aws_eks_cluster.main.certificate_authority[0].data)
-#     token                  = data.aws_eks_cluster_auth.main.token
-#   }
-# }
+
+# ----------------------------------------------------------
+# 🚧 TEMPORARY PROVIDERS for IMPORT ONLY
+# ----------------------------------------------------------
+# These use dummy values so Terraform won’t fail during import.
+# After import, replace them with the real ones again.
+# ----------------------------------------------------------
+
 provider "kubernetes" {
-  host                   = aws_eks_cluster.main_eks.endpoint
+  alias                  = "eks"
+  host                   = data.aws_eks_cluster.main.endpoint
   cluster_ca_certificate = base64decode(data.aws_eks_cluster.main.certificate_authority[0].data)
   token                  = data.aws_eks_cluster_auth.main.token
-  alias                  = "eks"
-
-  # Add resilience: skip validation if cluster is being destroyed
-  skip_credentials_validation = false
-  skip_metadata_api_check     = false
 }
 
 provider "helm" {
   kubernetes = {
-    host                   = aws_eks_cluster.main_eks.endpoint
+    host                   = data.aws_eks_cluster.main.endpoint
     cluster_ca_certificate = base64decode(data.aws_eks_cluster.main.certificate_authority[0].data)
     token                  = data.aws_eks_cluster_auth.main.token
   }

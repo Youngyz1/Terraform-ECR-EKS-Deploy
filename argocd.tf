@@ -28,7 +28,7 @@ resource "helm_release" "argocd" {
   set = [
     {
       name  = "server.service.type"
-     value = "ClusterIP"
+      value = "LoadBalancer"   # <-- changed here
     },
     {
       name  = "configs.secret.argocdServerAdminPassword"

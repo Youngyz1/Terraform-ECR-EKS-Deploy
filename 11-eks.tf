@@ -65,9 +65,6 @@ resource "aws_eks_cluster" "main_eks" {
     update = "60m"
   }
 
-    lifecycle {
-      prevent_destroy = true
-    }
 }
 
 ############################################

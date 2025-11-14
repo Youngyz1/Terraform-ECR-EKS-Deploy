@@ -10,10 +10,6 @@ resource "kubernetes_namespace" "monitoring" {
   }
 }
 
-# We don't use a separate helm_repository resource because the installed
-# helm provider in this Terraform version doesn't support it. Instead
-# provide the repository URL directly in the helm_release below.
-
 # Generate a random admin password for Grafana
 resource "random_password" "grafana_admin" {
   length  = 16
@@ -26,12 +22,13 @@ resource "helm_release" "kube_prometheus_stack" {
   repository = "https://prometheus-community.github.io/helm-charts"
   chart      = "kube-prometheus-stack"
   namespace  = kubernetes_namespace.monitoring.metadata[0].name
+  version    = "45.0.0" # Pin a stable version for reliability
 
-  # Use the `set` argument (list of maps) rather than nested set blocks
+  # Use the `set` argument (list of maps) to configure Grafana and Prometheus
   set = [
     {
       name  = "grafana.service.type"
-     value = "ClusterIP"
+      value = "LoadBalancer"   # <-- changed from ClusterIP to LoadBalancer
     },
     {
       name  = "grafana.adminPassword"
@@ -58,6 +55,15 @@ data "kubernetes_service" "grafana" {
     namespace = kubernetes_namespace.monitoring.metadata[0].name
   }
 
-  # Wait for helm_release to be created first
   depends_on = [helm_release.kube_prometheus_stack]
 }
+
+# Optional: Output Grafana LoadBalancer DNS
+# output "grafana_load_balancer_address" {
+#   description = "Grafana LoadBalancer hostname or IP (may be 'pending' until LB is provisioned)"
+#   value = try(
+#     data.kubernetes_service.grafana.status[0].load_balancer[0].ingress[0].hostname,
+#     data.kubernetes_service.grafana.status[0].load_balancer[0].ingress[0].ip,
+#     "pending"
+#   )
+# }

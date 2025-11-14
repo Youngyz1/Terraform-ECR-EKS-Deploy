@@ -6,7 +6,4 @@ resource "aws_vpc" "main_vpc" {
     Name = var.main_vpc
   }
 
-  lifecycle {
-    prevent_destroy = true
-  }
 }
